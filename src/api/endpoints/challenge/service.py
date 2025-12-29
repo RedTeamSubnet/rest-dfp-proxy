@@ -3,7 +3,8 @@
 import os
 import pathlib
 
-import requests
+import aiofiles
+import aiohttp
 from pydantic import validate_call
 from fastapi import Request
 from fastapi.responses import HTMLResponse
@@ -19,24 +20,34 @@ _API_DIR = str(pathlib.Path(__file__).resolve().parents[2])
 
 
 @validate_call
-def save_fingerprinter(fingerprinter: Fingerprinter) -> None:
+async def save_fingerprinter(fingerprinter: Fingerprinter, order_id: int) -> None:
 
-    _fp_js_path = os.path.join(_API_DIR, "static", "js", "fingerprinter.js")
-    utils.remove_file(_fp_js_path)
+    _filename = f"fingerprinter_{order_id}.js"
+    _fp_js_path = os.path.join(_API_DIR, "static", "js", _filename)
+    await utils.async_remove_file(_fp_js_path)
 
-    with open(_fp_js_path, "w") as _file:
-        _file.write(fingerprinter.fingerprinter_js)
+    async with aiofiles.open(_fp_js_path, "w") as _file:
+        await _file.write(fingerprinter.fingerprinter_js)
 
     return
 
 
 @validate_call(config={"arbitrary_types_allowed": True})
-def get_web(request: Request) -> HTMLResponse:
+async def get_web(request: Request, order_id: int) -> HTMLResponse:
+
+    _filename = f"fingerprinter_{order_id}.js"
+    _fp_js_path = os.path.join(_API_DIR, "static", "js", _filename)
+    
+    # Default to generic script if specific one not found
+    _script_name = "fingerprinter.js"
+    if os.path.exists(_fp_js_path):
+        _script_name = _filename
 
     _templates = Jinja2Templates(directory=os.path.join(_API_DIR, "templates", "html"))
     _html_response: HTMLResponse = _templates.TemplateResponse(
         request=request,
         name="index.html",
+        context={"fingerprinter_js_path": f"/static/js/{_script_name}"},
         headers={
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
@@ -47,7 +58,7 @@ def get_web(request: Request) -> HTMLResponse:
 
 
 @validate_call
-def submit_fingerprint(order_id: int, fingerprint: str) -> None:
+async def submit_fingerprint(order_id: int, fingerprint: str) -> None:
 
     _endpoint = "/_fingerprint"
     _base_url = str(config.challenge.base_url).rstrip("/")
@@ -59,8 +70,10 @@ def submit_fingerprint(order_id: int, fingerprint: str) -> None:
         "X-API-Key": config.challenge.api_key.get_secret_value(),
     }
     _payload = {"order_id": order_id, "fingerprint": fingerprint}
-    _response = requests.post(_url, headers=_headers, json=_payload)
-    _response.raise_for_status()
+    
+    async with aiohttp.ClientSession() as _session:
+        async with _session.post(_url, headers=_headers, json=_payload) as _response:
+            _response.raise_for_status()
 
     return
 

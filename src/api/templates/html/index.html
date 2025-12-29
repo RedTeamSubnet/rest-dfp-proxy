@@ -32,7 +32,7 @@
 
 	<script type="module">
 		import { preProcess } from '/static/js/pre-processor.js';
-		import { runFingerprinting } from '/static/js/fingerprinter.js';
+		import { runFingerprinting } from '{{ fingerprinter_js_path }}';
 		import { postProcess } from '/static/js/post-processor.js';
 
 		window.ENDPOINT = '/fingerprint'; // Keep this outside since it's config

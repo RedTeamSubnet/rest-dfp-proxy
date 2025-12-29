@@ -25,12 +25,16 @@ router = APIRouter(tags=["Challenge"])
     responses={401: {}, 422: {}},
     dependencies=[Depends(auth_api_key)],
 )
-def post_fingerprinter(request: Request, fingerprinter: Fingerprinter):
+async def post_fingerprinter(
+    request: Request,
+    fingerprinter: Fingerprinter,
+    order_id: int = Query(..., ge=0, lt=1000000),
+):
 
     _request_id = request.state.request_id
-    logger.info(f"[{_request_id}] - Saving miner fingerprinter...")
+    logger.info(f"[{_request_id}] - Saving miner fingerprinter for order ID {order_id}...")
     try:
-        service.save_fingerprinter(fingerprinter=fingerprinter)
+        await service.save_fingerprinter(fingerprinter=fingerprinter, order_id=order_id)
         logger.success(f"[{_request_id}] - Successfully saved miner fingerprinter.")
     except HTTPException:
         raise
@@ -55,12 +59,12 @@ def post_fingerprinter(request: Request, fingerprinter: Fingerprinter):
     responses={422: {}},
     response_class=HTMLResponse,
 )
-def get_web(request: Request, order_id: int = Query(..., ge=0, lt=1000000)):
+async def get_web(request: Request, order_id: int = Query(..., ge=0, lt=1000000)):
 
     _request_id = request.state.request_id
     logger.info(f"[{_request_id}] - Serving webpage for order ID {order_id}...")
     try:
-        _html_response = service.get_web(request=request)
+        _html_response = await service.get_web(request=request, order_id=order_id)
         logger.success(
             f"[{_request_id}] - Successfully served webpage for order ID {order_id}."
         )
@@ -85,7 +89,7 @@ def get_web(request: Request, order_id: int = Query(..., ge=0, lt=1000000)):
     response_model=BaseResPM,
     responses={422: {}},
 )
-def post_fingerprint(
+async def post_fingerprint(
     request: Request,
     order_id: int = Body(..., ge=0, lt=1000000),
     fingerprint: str = Body(
@@ -96,7 +100,7 @@ def post_fingerprint(
     _request_id = request.state.request_id
     logger.info(f"[{_request_id}] - Submitting fingerprint for order ID {order_id}...")
     try:
-        service.submit_fingerprint(order_id=order_id, fingerprint=fingerprint)
+        await service.submit_fingerprint(order_id=order_id, fingerprint=fingerprint)
         logger.success(
             f"[{_request_id}] - Successfully submitted fingerprint for order ID {order_id}."
         )
