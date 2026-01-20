@@ -11,7 +11,7 @@ from api.core.dependencies.auth import auth_api_key
 from api.logger import logger
 
 from . import service
-from .schemas import Fingerprinter
+from .schemas import Fingerprinter, FingerprintPayload
 
 
 router = APIRouter(tags=["Challenge"])
@@ -91,24 +91,23 @@ async def get_web(request: Request, order_id: int = Query(..., ge=0, lt=1000000)
 )
 async def post_fingerprint(
     request: Request,
-    order_id: int = Body(..., ge=0, lt=1000000),
-    fingerprint: str = Body(
-        ..., min_length=2, max_length=128, pattern=ALPHANUM_HYPHEN_REGEX
-    ),
+    payload: FingerprintPayload,
 ):
 
     _request_id = request.state.request_id
-    logger.info(f"[{_request_id}] - Submitting fingerprint for order ID {order_id}...")
+    logger.info(
+        f"[{_request_id}] - Submitting fingerprint for order ID {payload.order_id}..."
+    )
     try:
-        await service.submit_fingerprint(order_id=order_id, fingerprint=fingerprint)
+        await service.submit_fingerprint(payload=payload)
         logger.success(
-            f"[{_request_id}] - Successfully submitted fingerprint for order ID {order_id}."
+            f"[{_request_id}] - Successfully submitted fingerprint for order ID {payload.order_id}."
         )
     except HTTPException:
         raise
     except Exception:
         logger.exception(
-            f"[{_request_id}] - Failed to submit fingerprint for order ID {order_id}!"
+            f"[{_request_id}] - Failed to submit fingerprint for order ID {payload.order_id}!"
         )
         raise BaseHTTPException(
             error_enum=ErrorCodeEnum.INTERNAL_SERVER_ERROR,
