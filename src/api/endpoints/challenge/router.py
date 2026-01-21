@@ -1,55 +1,52 @@
 # -*- coding: utf-8 -*-
 
+from fastapi import APIRouter, HTTPException, Request, Response, Depends, Query, Body
 from fastapi.responses import HTMLResponse
-from fastapi import APIRouter, HTTPException, Request, Depends, Query, Body
 
-from api.core.constants import ErrorCodeEnum, ALPHANUM_HYPHEN_REGEX
-from api.core.schemas import BaseResPM
 from api.core.responses import BaseResponse
-from api.core.exceptions import BaseHTTPException
 from api.core.dependencies.auth import auth_api_key
 from api.logger import logger
 
 from . import service
-from .schemas import Fingerprinter, FingerprintPayload
 
 
 router = APIRouter(tags=["Challenge"])
 
 
-@router.post(
-    "/_fp-js",
-    summary="Save miner fingerprinter",
-    description="This endpoint retrieves the miner fingerprinter from the challenger container.",
-    response_model=BaseResPM,
-    responses={401: {}, 422: {}},
-    dependencies=[Depends(auth_api_key)],
-)
-async def post_fingerprinter(
-    request: Request,
-    fingerprinter: Fingerprinter,
-    order_id: int = Query(..., ge=0, lt=1000000),
+@router.post("/set_device_session", dependencies=[Depends(auth_api_key)])
+def set_device_session(
+    device_id: int = Body(..., ge=0), order_id: int = Body(..., ge=0)
 ):
+    service.set_device_session(device_id=device_id, order_id=order_id)
+    return BaseResponse(message="Device session set successfully.")
 
+
+@router.get(
+    "/redirect",
+    summary="Redirect device to dynamic challenge URL",
+    description="This endpoint redirects a device to its dynamic session URL on the proxy.",
+    response_class=Response,
+)
+def get_redirect(request: Request, device_id: int = Query(..., ge=0)):
     _request_id = request.state.request_id
-    logger.info(f"[{_request_id}] - Saving miner fingerprinter for order ID {order_id}...")
-    try:
-        await service.save_fingerprinter(fingerprinter=fingerprinter, order_id=order_id)
-        logger.success(f"[{_request_id}] - Successfully saved miner fingerprinter.")
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception(f"[{_request_id}] - Failed to save miner fingerprinter!")
-        raise BaseHTTPException(
-            error_enum=ErrorCodeEnum.INTERNAL_SERVER_ERROR,
-            message="Failed to save miner fingerprinter!",
-        )
+    logger.info(f"[{_request_id}] - Redirecting device ID {device_id}...")
 
-    _response = BaseResponse(
-        request=request,
-        message="Successfully saved miner fingerprinter.",
-    )
-    return _response
+    try:
+        _url = service.get_redirect_url(device_id=device_id)
+        logger.success(f"[{_request_id}] - Redirecting device {device_id} to {_url}")
+
+        # Return a 307 Redirect with "no-referrer" policy
+        # This prevents the destination page (Miner JS) from seeing "device_id=X" in document.referrer
+        return Response(
+            status_code=307,
+            headers={"Location": _url, "Referrer-Policy": "no-referrer"},
+        )
+    except Exception as e:
+        logger.warning(f"[{_request_id}] - Failed to redirect device {device_id}: {e}")
+        # Fallback or error page could go here, but raising 404 is standard if session not active
+        raise HTTPException(
+            status_code=404, detail="Session not active or device not found"
+        )
 
 
 @router.get(
