@@ -28,7 +28,7 @@ _DEVICE_SESSIONS = {}
 @validate_call
 def set_device_session(device_id: int, order_id: int) -> None:
     _DEVICE_SESSIONS[device_id] = order_id
-    logger.info(f"Mapped Device {device_id} -> Order {order_id}")
+    logger.debug(f"Mapped Device {device_id} -> Order {order_id}")
     return
 
 
