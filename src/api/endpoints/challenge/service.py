@@ -58,11 +58,7 @@ async def save_fingerprinter(fingerprinter: Fingerprinter, order_id: int) -> Non
 async def get_web(request: Request, order_id: int) -> HTMLResponse:
 
     # Always serve the same session script regardless of order_id
-    _templates = Jinja2Templates(
-        directory=os.path.join(
-            pathlib.Path(__file__).parent.parent.parent.parent, "templates", "html"
-        )
-    )
+    _templates = Jinja2Templates(directory=os.path.join(_API_DIR, "templates", "html"))
     _html_response: HTMLResponse = _templates.TemplateResponse(
         request=request,
         name="index.html",

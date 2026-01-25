@@ -3,6 +3,7 @@
 from pydantic import validate_call
 from fastapi import FastAPI, APIRouter
 
+from api.config import config
 from api.core.routers.utils import router as utils_router
 from api.core.routers.default import router as default_router
 from api.endpoints.challenge.router import router as challenge_router
@@ -16,7 +17,8 @@ def add_routers(app: FastAPI) -> None:
         app (FastAPI): FastAPI app instance.
     """
 
-    _api_router = APIRouter()
+    _api_router = APIRouter(prefix=config.api.prefix)
+
     _api_router.include_router(utils_router)
 
     ## Add more API routers here...

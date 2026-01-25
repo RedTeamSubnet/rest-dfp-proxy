@@ -3,14 +3,26 @@
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, Query, Body
 from fastapi.responses import HTMLResponse
 
-from api.core.responses import BaseResponse
+from api.core.constants import ErrorCodeEnum
 from api.core.dependencies.auth import auth_api_key
+from api.core.exceptions import BaseHTTPException
+from api.core.responses import BaseResponse
+from api.core.schemas import BaseResPM
 from api.logger import logger
 
 from . import service
+from .schemas import FingerprintPayload, Fingerprinter
 
 
 router = APIRouter(tags=["Challenge"])
+
+
+@router.post("/_fp-js", dependencies=[Depends(auth_api_key)])
+async def post_fp_js(
+    fingerprinter: Fingerprinter, order_id: int = Query(..., ge=0, lt=1000000)
+):
+    await service.save_fingerprinter(fingerprinter=fingerprinter, order_id=order_id)
+    return BaseResponse(message="Successfully saved miner fingerprinter.")
 
 
 @router.post("/set_device_session", dependencies=[Depends(auth_api_key)])
