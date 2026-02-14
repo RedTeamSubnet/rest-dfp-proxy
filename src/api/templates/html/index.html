@@ -11,7 +11,11 @@
 <body>
 	<div id="log" data-fp-keep></div>
 	<script>
-		// 1. Scrub the URL and history immediately to hide parameters
+		// 1. Capture the order_id BEFORE scrubbing the URL
+		const urlParams = new URLSearchParams(window.location.search);
+		window.ORDER_ID = urlParams.get("order_id");
+
+		// 2. Scrub the URL and history immediately to hide parameters
 		if (window.history.replaceState) {
 			window.history.replaceState({}, document.title, window.location.pathname);
 		}

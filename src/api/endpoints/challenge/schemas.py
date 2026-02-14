@@ -45,7 +45,7 @@ class Fingerprinter(BaseModel):
 class FingerprintPayload(BaseModel):
     order_id: int = Field(..., ge=0, lt=1000000)
     fingerprint: str = Field(
-        ..., min_length=2, max_length=128, pattern=r"^[a-zA-Z0-9-]+$"
+        ..., min_length=2, max_length=128, pattern=r"^[a-zA-Z0-9+/=-]+$"
     )
 
 
