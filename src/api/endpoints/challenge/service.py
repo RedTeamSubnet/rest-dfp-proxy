@@ -86,9 +86,13 @@ async def get_web(request: Request, order_id: int) -> HTMLResponse:
         name="index.html",
         context={"fingerprinter_js_path": f"/static/js/{_js_name}"},
         headers={
+            "Referrer-Policy": "no-referrer",
+            "Clear-Site-Data": '"cache", "cookies", "storage"',
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
             "Expires": "0",
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "DENY",
         },
     )
     return _html_response

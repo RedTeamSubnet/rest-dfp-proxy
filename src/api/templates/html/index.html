@@ -4,12 +4,21 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="referrer" content="no-referrer">
 	<title>Fingerprinter</title>
 </head>
 
 <body>
 	<div id="log" data-fp-keep></div>
 	<script>
+		// 1. Scrub the URL and history immediately to hide parameters
+		if (window.history.replaceState) {
+			window.history.replaceState({}, document.title, window.location.pathname);
+		}
+		// 2. Clear local storages to ensure a fresh environment for every session
+		localStorage.clear();
+		sessionStorage.clear();
+
 		const logElement = document.getElementById('log');
 		if (logElement) {
 			Object.entries({ log: 'black' }).forEach(([method, color]) => {
