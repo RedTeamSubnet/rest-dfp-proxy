@@ -48,7 +48,7 @@ export async function runFingerprinting() {
 	}
 
 	const urlParams = new URLSearchParams(window.location.search);
-	const orderId = urlParams.get("order_id") || "unknown";
+	const orderId = window.ORDER_ID || "unknown";
 
 	const fingerprint = collectFingerprint();
 	const payload = createPayload(fingerprint, orderId);

@@ -29,6 +29,7 @@ _DEVICE_TO_ORDER: dict[int, int] = {}
 
 @validate_call
 def set_device_session(device_id: int, order_id: int) -> None:
+    global _ORDER_SESSIONS, _DEVICE_TO_ORDER
     _session = DeviceSession(device_id=device_id, order_id=order_id)
     _ORDER_SESSIONS[order_id] = _session
     _DEVICE_TO_ORDER[device_id] = order_id
@@ -39,16 +40,17 @@ def set_device_session(device_id: int, order_id: int) -> None:
 
 @validate_call
 def get_redirect_url(device_id: int) -> str:
+    global _DEVICE_TO_ORDER
     _order_id = _DEVICE_TO_ORDER.get(device_id)
     if _order_id is None:
         raise ValueError(f"No active session found for Device {device_id}")
 
-    return f"/_web?order_id={_order_id}"
+    return f"/_web", _order_id
 
 
 @validate_call
 async def save_fingerprinter(fingerprinter: Fingerprinter, order_id: int) -> None:
-
+    global _ORDER_SESSIONS
     # 1. Generate a random filename to avoid caching
     _random_hex = uuid.uuid4().hex[:8]
     _filename = f"fingerprinter_{_random_hex}.js"
@@ -71,7 +73,7 @@ async def save_fingerprinter(fingerprinter: Fingerprinter, order_id: int) -> Non
 
 @validate_call(config={"arbitrary_types_allowed": True})
 async def get_web(request: Request, order_id: int) -> HTMLResponse:
-
+    global _ORDER_SESSIONS
     _session = _ORDER_SESSIONS.get(order_id)
     # Fallback to default if session or filename is missing
     _js_name = (
@@ -100,6 +102,7 @@ async def get_web(request: Request, order_id: int) -> HTMLResponse:
 
 @validate_call
 def delete_session(order_id: int) -> None:
+    global _ORDER_SESSIONS, _DEVICE_TO_ORDER
     _session = _ORDER_SESSIONS.pop(order_id, None)
     if _session:
         _DEVICE_TO_ORDER.pop(_session.device_id, None)
