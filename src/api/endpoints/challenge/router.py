@@ -41,11 +41,11 @@ def set_device_session(
 )
 def get_redirect(request: Request, device_id: int = Query(..., ge=0)):
     _request_id = request.state.request_id
-    logger.info(f"[{_request_id}] - Redirecting device ID {device_id}...")
+    logger.debug(f"[{_request_id}] - Redirecting device ID {device_id}...")
 
     try:
         _url = service.get_redirect_url(device_id=device_id)
-        logger.success(f"[{_request_id}] - Redirecting device {device_id} to {_url}")
+        logger.debug(f"[{_request_id}] - Redirecting device {device_id} to {_url}")
 
         # Return a 307 Redirect with "no-referrer" policy
         # This prevents the destination page (Miner JS) from seeing "device_id=X" in document.referrer
@@ -71,10 +71,10 @@ def get_redirect(request: Request, device_id: int = Query(..., ge=0)):
 async def get_web(request: Request, order_id: int = Query(..., ge=0, lt=1000000)):
 
     _request_id = request.state.request_id
-    logger.info(f"[{_request_id}] - Serving webpage for order ID {order_id}...")
+    logger.debug(f"[{_request_id}] - Serving webpage for order ID {order_id}...")
     try:
         _html_response = await service.get_web(request=request, order_id=order_id)
-        logger.success(
+        logger.debug(
             f"[{_request_id}] - Successfully served webpage for order ID {order_id}."
         )
     except HTTPException:
@@ -104,12 +104,12 @@ async def post_fingerprint(
 ):
 
     _request_id = request.state.request_id
-    logger.info(
+    logger.debug(
         f"[{_request_id}] - Submitting fingerprint for order ID {payload.order_id}..."
     )
     try:
         await service.submit_fingerprint(payload=payload)
-        logger.success(
+        logger.debug(
             f"[{_request_id}] - Successfully submitted fingerprint for order ID {payload.order_id}."
         )
     except HTTPException:

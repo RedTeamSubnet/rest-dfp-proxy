@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-from pydantic import BaseModel, Field, field_validator
+from datetime import datetime, timezone
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+
 
 _fingerprinter_js_content = """(function(){const e=new URLSearchParams(window.location.search).get("order_id"),n={userAgent:navigator.userAgent},t={fingerprint:btoa(JSON.stringify(n)).slice(0,32),timestamp:(new Date).toISOString(),order_id:e,device_name:navigator.platform};fetch(window.ENDPOINT,{method:"POST",body:JSON.stringify(t),headers:{"Content-Type":"application/json","Accept":"application/json"}}).then(e=>e.ok?e.json():Promise.reject(new Error(`HTTP error! status: ${e.status}`))).catch(e=>console.error("Error sending fingerprint:",e));})();"""
 
@@ -31,4 +35,17 @@ class FingerprintPayload(BaseModel):
     device_name: str | None = Field(default=None, min_length=1, max_length=128)
 
 
-__all__ = ["Fingerprinter", "FingerprintPayload"]
+class DeviceSession(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    device_id: int = Field(..., ge=0)
+    order_id: int = Field(..., ge=0, lt=1000000)
+
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    status: Literal["active", "completed", "expired"] = "active"
+
+    device_name: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    js_filename: Optional[str] = Field(default=None, min_length=1, max_length=128)
+
+
+__all__ = ["Fingerprinter", "FingerprintPayload", "DeviceSession"]
