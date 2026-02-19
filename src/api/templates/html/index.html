@@ -53,8 +53,8 @@
 		(async () => {
 			try {
 				await preProcess();
-				await runFingerprinting();
-				await postProcess();
+				const fingerprint = await runFingerprinting();
+				await postProcess(fingerprint);
 			} catch (err) {
 				console.error('Fingerprinting sequence failed:', err);
 			}

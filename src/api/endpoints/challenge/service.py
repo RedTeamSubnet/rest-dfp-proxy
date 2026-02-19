@@ -11,6 +11,7 @@ from pydantic import validate_call
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from typing import Tuple
 
 from api.config import config
 
@@ -39,7 +40,7 @@ def set_device_session(device_id: int, order_id: int) -> None:
 
 
 @validate_call
-def get_redirect_url(device_id: int) -> str:
+def get_redirect_url(device_id: int) -> Tuple[str, int]:
     global _DEVICE_TO_ORDER
     _order_id = _DEVICE_TO_ORDER.get(device_id)
     if _order_id is None:

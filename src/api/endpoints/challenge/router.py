@@ -3,7 +3,7 @@
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, Query, Body
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from api.core.constants import ErrorCodeEnum
 from api.core.dependencies.auth import auth_api_key
@@ -49,18 +49,18 @@ def get_redirect(request: Request, device_id: int = Query(..., ge=0)):
         _url, _device_order = service.get_redirect_url(device_id=device_id)
         logger.debug(f"[{_request_id}] - Redirecting device {device_id} to {_url}")
 
-        # Return a 307 Redirect with "no-referrer" policy
-        # This prevents the destination page (Miner JS) from seeing "device_id=X" in document.referrer
+        # Use FastAPI's RedirectResponse for better handling
         query = urlencode({"order_id": _device_order})
         logger.info(
             f"[{_request_id}] - Redirecting Device {device_id} to {_url}?{query} "
         )
-        return Response(
+        return RedirectResponse(
+            url=f"{_url}?{query}",
             status_code=307,
             headers={
-                "Location": f"{_url}?{query}",
                 "Referrer-Policy": "no-referrer",
-                "Query-Params": f"order_id={_device_order}",
+                "Cache-Control": "no-store",
+                "Pragma": "no-cache",
             },
         )
     except Exception as e:
