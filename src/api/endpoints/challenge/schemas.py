@@ -63,7 +63,6 @@ class DeviceSession(BaseModel):
 
 
 class MinerCollect(BaseModel):
-    session_id: str
     device_label: str
     fingerprint_hash: str
 
