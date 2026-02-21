@@ -62,4 +62,10 @@ class DeviceSession(BaseModel):
     js_filename: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
 
-__all__ = ["Fingerprinter", "FingerprintPayload", "DeviceSession"]
+class MinerCollect(BaseModel):
+    session_id: str
+    device_label: str
+    fingerprint_hash: str
+
+
+__all__ = ["Fingerprinter", "FingerprintPayload", "DeviceSession", "MinerCollect"]

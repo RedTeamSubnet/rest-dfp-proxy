@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>Miner Testing Sandbox</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .btn-primary:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .btn-secondary:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .btn-danger:disabled {
+            background: #e4606d;
+            cursor: not-allowed;
+        }
+        #results-area {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: none;
+        }
+        #results-area.active {
+            display: block;
+        }
+        .score-display {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .breakdown {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .devices-list {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .device-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .device-item:last-child {
+            border-bottom: none;
+        }
+        #status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        #status.success {
+            display: block;
+            background: #d4edda;
+            color: #155724;
+        }
+        #status.error {
+            display: block;
+            background: #f8d7da;
+            color: #721c24;
+        }
+        #status.info {
+            display: block;
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .script-info {
+            margin-top: 20px;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Miner Testing Sandbox</h1>
+        <p class="subtitle">Test your fingerprinting script</p>
+
+        <div class="form-group">
+            <label for="device-label">Device Label</label>
+            <input type="text" id="device-label" placeholder="Enter device identifier (e.g., device-1, chrome-desktop)">
+        </div>
+
+        <div class="script-info">
+            <strong>Using script:</strong> <code>/static/js/fingerprinter.js</code>
+        </div>
+
+        <div class="button-group">
+            <button id="submit-btn" class="btn-primary">Submit Fingerprint</button>
+            <button id="results-btn" class="btn-secondary">View Results</button>
+            <button id="clean-btn" class="btn-danger">Clean Session</button>
+        </div>
+
+        <div id="status"></div>
+
+        <div id="results-area">
+            <h2>Results</h2>
+            <div class="score-display">
+                Score: <span id="score-value">0.00</span>
+            </div>
+            <div class="breakdown">
+                <div class="stat-box">
+                    <div class="stat-value" id="correct-count">0</div>
+                    <div class="stat-label">Correct</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="collision-count">0</div>
+                    <div class="stat-label">Collisions</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="fragmentation-count">0</div>
+                    <div class="stat-label">Fragmentations</div>
+                </div>
+            </div>
+            <h3>Collected Fingerprints</h3>
+            <div class="devices-list" id="devices-list"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { preProcess } from '/static/js/pre-processor.js';
+        import { runFingerprinting } from '/static/js/fingerprinter.js';
+
+        const deviceLabelInput = document.getElementById('device-label');
+        const submitBtn = document.getElementById('submit-btn');
+        const resultsBtn = document.getElementById('results-btn');
+        const cleanBtn = document.getElementById('clean-btn');
+        const statusDiv = document.getElementById('status');
+        const resultsArea = document.getElementById('results-area');
+
+        let isRunning = false;
+
+        function showStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function handleSubmit() {
+            if (isRunning) return;
+
+            const deviceLabel = deviceLabelInput.value.trim();
+
+            if (!deviceLabel) {
+                showStatus('Please enter a Device Label', 'error');
+                return;
+            }
+
+            isRunning = true;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Running...';
+
+            try {
+                showStatus('Running pre-process...', 'info');
+                await preProcess();
+
+                showStatus('Generating fingerprint...', 'info');
+                const fingerprint = await runFingerprinting();
+
+                showStatus('Submitting fingerprint...', 'info');
+                const response = await fetch('/collect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: 'default',
+                        device_label: deviceLabel,
+                        fingerprint_hash: fingerprint
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                showStatus(`Fingerprint collected: ${fingerprint.substring(0, 32)}...`, 'success');
+
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                isRunning = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Fingerprint';
+            }
+        }
+
+        async function handleResults() {
+            resultsBtn.disabled = true;
+            resultsBtn.textContent = 'Loading...';
+
+            try {
+                showStatus('Fetching results...', 'info');
+                const response = await fetch('/results');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const responseData = await response.json();
+                const results = responseData.data;
+
+                document.getElementById('score-value').textContent = results.score;
+                document.getElementById('correct-count').textContent = results.breakdown.correct;
+                document.getElementById('collision-count').textContent = results.breakdown.collisions;
+                document.getElementById('fragmentation-count').textContent = results.breakdown.fragmentations;
+
+                const devicesList = document.getElementById('devices-list');
+                if (results.devices && results.devices.length > 0) {
+                    devicesList.innerHTML = results.devices.map((device, index) => `
+                        <div class="device-item">
+                            <strong>#${index + 1}</strong> |
+                            Label: <code>${escapeHtml(device.device_label)}</code> |
+                            Hash: <code>${escapeHtml(device.fingerprint_hash)}</code>
+                        </div>
+                    `).join('');
+                } else {
+                    devicesList.innerHTML = '<div class="device-item">No devices collected yet</div>';
+                }
+
+                resultsArea.classList.add('active');
+                showStatus('Results loaded successfully', 'success');
+
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                resultsBtn.disabled = false;
+                resultsBtn.textContent = 'View Results';
+            }
+        }
+
+        async function handleClean() {
+            cleanBtn.disabled = true;
+            cleanBtn.textContent = 'Cleaning...';
+
+            try {
+                showStatus('Cleaning session...', 'info');
+                const response = await fetch('/clean', {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                resultsArea.classList.remove('active');
+                deviceLabelInput.value = '';
+                showStatus('Session cleaned successfully', 'success');
+
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            } finally {
+                cleanBtn.disabled = false;
+                cleanBtn.textContent = 'Clean Session';
+            }
+        }
+
+        submitBtn.addEventListener('click', handleSubmit);
+        resultsBtn.addEventListener('click', handleResults);
+        cleanBtn.addEventListener('click', handleClean);
+
+        deviceLabelInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSubmit();
+        });
+    </script>
+</body>
+
+</html>

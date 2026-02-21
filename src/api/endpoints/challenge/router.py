@@ -13,7 +13,7 @@ from api.core.schemas import BaseResPM
 from api.logger import logger
 
 from . import service
-from .schemas import FingerprintPayload, Fingerprinter
+from .schemas import FingerprintPayload, Fingerprinter, MinerCollect
 
 
 router = APIRouter(tags=["Challenge"])
@@ -138,6 +138,105 @@ async def post_fingerprint(
         message="Successfully submitted fingerprint.",
     )
     return _response
+
+
+@router.get(
+    "/miner-test",
+    summary="Miner Testing Sandbox",
+    description="Renders the miner testing sandbox page for device fingerprinting testing.",
+    response_class=HTMLResponse,
+)
+async def get_miner_test(request: Request):
+    _request_id = request.state.request_id
+    logger.debug(f"[{_request_id}] - Serving miner test page...")
+    try:
+        _html_response = await service.get_miner_test_page(request=request)
+        logger.debug(f"[{_request_id}] - Successfully served miner test page.")
+    except Exception:
+        logger.exception(f"[{_request_id}] - Failed to serve miner test page!")
+        raise BaseHTTPException(
+            error_enum=ErrorCodeEnum.INTERNAL_SERVER_ERROR,
+            message="Failed to serve miner test page!",
+        )
+    return _html_response
+
+
+@router.post(
+    "/collect",
+    summary="Collect fingerprint",
+    description="Collects a fingerprint submission from the miner testing sandbox.",
+    response_model=BaseResPM,
+)
+async def post_collect(
+    request: Request,
+    payload: MinerCollect,
+):
+    _request_id = request.state.request_id
+    logger.debug(
+        f"[{_request_id}] - Collecting fingerprint for device {payload.device_label}..."
+    )
+    try:
+        service.collect_fingerprint(data=payload)
+        logger.debug(f"[{_request_id}] - Successfully collected fingerprint.")
+    except Exception:
+        logger.exception(f"[{_request_id}] - Failed to collect fingerprint!")
+        raise BaseHTTPException(
+            error_enum=ErrorCodeEnum.INTERNAL_SERVER_ERROR,
+            message="Failed to collect fingerprint!",
+        )
+
+    _response = BaseResponse(
+        request=request,
+        message="Successfully collected fingerprint.",
+    )
+    return _response
+
+
+@router.post(
+    "/clean",
+    summary="Clean miner test session",
+    description="Clears all collected fingerprints and resets the session.",
+    response_model=BaseResPM,
+)
+async def post_clean(request: Request):
+    _request_id = request.state.request_id
+    logger.debug(f"[{_request_id}] - Cleaning miner test session...")
+    try:
+        service.clear_miner_data()
+        logger.debug(f"[{_request_id}] - Successfully cleaned session.")
+    except Exception:
+        logger.exception(f"[{_request_id}] - Failed to clean session!")
+        raise BaseHTTPException(
+            error_enum=ErrorCodeEnum.INTERNAL_SERVER_ERROR,
+            message="Failed to clean session!",
+        )
+
+    _response = BaseResponse(
+        request=request,
+        message="Session cleaned successfully.",
+    )
+    return _response
+
+
+@router.get(
+    "/results",
+    summary="Get miner test results",
+    description="Returns scoring results for the current miner test session.",
+)
+async def get_results(request: Request):
+    _request_id = request.state.request_id
+    logger.debug(f"[{_request_id}] - Getting miner test results...")
+    try:
+        _results = service.get_miner_results()
+        logger.debug(f"[{_request_id}] - Successfully retrieved results.")
+    except Exception:
+        logger.exception(f"[{_request_id}] - Failed to get results!")
+        raise BaseHTTPException(
+            error_enum=ErrorCodeEnum.INTERNAL_SERVER_ERROR,
+            message="Failed to get results!",
+        )
+
+    return _results
 
 
 __all__ = [
