@@ -30,6 +30,7 @@ _DEVICE_TO_ORDER: dict[int, int] = {}
 # In-memory storage for miner testing (single session)
 # Value: list of {device_label, fingerprint_hash}
 _MINER_DATA: list[dict] = []
+_FINGERPRINT_FILE_NAME: str = ""
 
 
 @validate_call
@@ -55,7 +56,7 @@ def get_redirect_url(device_id: int) -> Tuple[str, int]:
 
 @validate_call
 async def save_fingerprinter(fingerprinter: Fingerprinter, order_id: int) -> None:
-    global _ORDER_SESSIONS
+    global _ORDER_SESSIONS, _FINGERPRINT_FILE_NAME
     # 1. Generate a random filename to avoid caching
     _random_hex = uuid.uuid4().hex[:8]
     _filename = f"fingerprinter_{_random_hex}.js"
@@ -65,12 +66,7 @@ async def save_fingerprinter(fingerprinter: Fingerprinter, order_id: int) -> Non
     async with aiofiles.open(_fp_js_path, "w") as _file:
         await _file.write(fingerprinter.fingerprinter_js)
 
-    # 3. Link filename to session
-    if order_id in _ORDER_SESSIONS:
-        # FIXED: Use .model_copy() for Pydantic V2
-        _ORDER_SESSIONS[order_id] = _ORDER_SESSIONS[order_id].model_copy(
-            update={"js_filename": _filename}
-        )
+    _FINGERPRINT_FILE_NAME = _filename
 
     logger.debug(f"Saved fingerprinter JS for Order {order_id} as '{_filename}'")
     return
@@ -78,20 +74,13 @@ async def save_fingerprinter(fingerprinter: Fingerprinter, order_id: int) -> Non
 
 @validate_call(config={"arbitrary_types_allowed": True})
 async def get_web(request: Request, order_id: int) -> HTMLResponse:
-    global _ORDER_SESSIONS
-    _session = _ORDER_SESSIONS.get(order_id)
-    # Fallback to default if session or filename is missing
-    _js_name = (
-        _session.js_filename
-        if _session and _session.js_filename
-        else "fingerprinter.js"
-    )
+    global _FINGERPRINT_FILE_NAME
 
     _templates = Jinja2Templates(directory=os.path.join(_API_DIR, "templates", "html"))
     _html_response: HTMLResponse = _templates.TemplateResponse(
         request=request,
         name="index.html",
-        context={"fingerprinter_js_path": f"/static/js/{_js_name}"},
+        context={"fingerprinter_js_path": f"/static/js/{_FINGERPRINT_FILE_NAME}"},
         headers={
             "Referrer-Policy": "no-referrer",
             "Clear-Site-Data": '"cache", "cookies", "storage"',
@@ -147,10 +136,9 @@ async def submit_fingerprint(payload: FingerprintPayload) -> None:
 def collect_fingerprint(data: MinerCollect) -> None:
     """Store fingerprint submission in memory (single session)."""
     global _MINER_DATA
-    _MINER_DATA.append({
-        "device_label": data.device_label,
-        "fingerprint_hash": data.fingerprint_hash
-    })
+    _MINER_DATA.append(
+        {"device_label": data.device_label, "fingerprint_hash": data.fingerprint_hash}
+    )
     logger.debug(f"Collected fingerprint for device {data.device_label}")
 
 
@@ -164,14 +152,14 @@ def clear_miner_data() -> None:
 def get_miner_results() -> dict:
     """Calculate scoring results using production Two-Strike logic."""
     global _MINER_DATA
-    
+
     if not _MINER_DATA:
         return {
             "devices": [],
             "score": 0.0,
-            "breakdown": {"correct": 0, "collisions": 0, "fragmentations": 0}
+            "breakdown": {"correct": 0, "collisions": 0, "fragmentations": 0},
         }
-    
+
     # Group payloads by device_label
     # { device_label: [payload1, payload2, ...] }
     payloads_by_device: dict[str, list[dict]] = {}
@@ -180,7 +168,7 @@ def get_miner_results() -> dict:
         if label not in payloads_by_device:
             payloads_by_device[label] = []
         payloads_by_device[label].append(p)
-    
+
     # Build fingerprint -> set of device_labels map
     # { "FP_HASH": {device_1, device_2} }
     devices_sharing_fingerprint: dict[str, set] = {}
@@ -190,43 +178,47 @@ def get_miner_results() -> dict:
             if fp not in devices_sharing_fingerprint:
                 devices_sharing_fingerprint[fp] = set()
             devices_sharing_fingerprint[fp].add(label)
-    
+
     # Scoring configuration
     max_fragmentation = 3  # If >= 3 unique hashes, score = 0
     fragmentation_penalty = 0.3
     collision_penalty = 0.25
-    
+
     # Calculate points per device
     total_session_points = 0.0
     target_device_labels = set(payloads_by_device.keys())
-    
+
     correct = 0
     fragmentations = 0
     collisions = 0
-    
+
     for device_label in target_device_labels:
         device_payloads = payloads_by_device.get(device_label, [])
-        
+
         if not device_payloads:
             continue
-        
+
         device_points = 1.0
         unique_fps = {p["fingerprint_hash"] for p in device_payloads}
         unique_fps_count = len(unique_fps)
-        
+
         # Rule 1: Fragmentation (Internal Consistency)
         if unique_fps_count >= max_fragmentation:
-            logger.warning(f"Scoring: Device {device_label} reached fragmentation limit ({unique_fps_count} unique IDs).")
+            logger.warning(
+                f"Scoring: Device {device_label} reached fragmentation limit ({unique_fps_count} unique IDs)."
+            )
             device_points = 0.0
             fragmentations += 1
         elif unique_fps_count > 1:
             penalty = fragmentation_penalty * (unique_fps_count - 1)
             device_points -= penalty
-            logger.info(f"Scoring: Device {device_label} fragmented. Penalty: -{penalty:.2f}")
+            logger.info(
+                f"Scoring: Device {device_label} fragmented. Penalty: -{penalty:.2f}"
+            )
             fragmentations += 1
         else:
             correct += 1
-        
+
         # Rule 2: Two-Strike Collision (External Uniqueness)
         if device_points > 0:
             collision_count = 0
@@ -235,31 +227,39 @@ def get_miner_results() -> dict:
                 # Does this fingerprint match ANY other device?
                 if len(devices_sharing_fingerprint[fp]) > 1:
                     collision_count += 1
-            
+
             # Strike 1: 1 collision (-0.25)
             # Strike 2: 2+ collisions (0.0)
             if collision_count >= 2:
-                logger.warning(f"Scoring: Device {device_label} failed uniqueness in {collision_count} submissions. Score: 0.0")
+                logger.warning(
+                    f"Scoring: Device {device_label} failed uniqueness in {collision_count} submissions. Score: 0.0"
+                )
                 device_points = 0.0
                 collisions += 1
             elif collision_count == 1:
                 device_points -= collision_penalty
-                logger.info(f"Scoring: Device {device_label} collided in 1 submission. Penalty: -{collision_penalty:.2f}")
+                logger.info(
+                    f"Scoring: Device {device_label} collided in 1 submission. Penalty: -{collision_penalty:.2f}"
+                )
                 collisions += 1
-        
+
         total_session_points += max(0.0, device_points)
-    
+
     # Final normalization (average across all devices)
-    final_score = total_session_points / len(target_device_labels) if target_device_labels else 0.0
-    
+    final_score = (
+        total_session_points / len(target_device_labels)
+        if target_device_labels
+        else 0.0
+    )
+
     return {
         "devices": _MINER_DATA,
         "score": round(min(1.0, max(0.0, final_score)), 3),
         "breakdown": {
             "correct": correct,
             "collisions": collisions,
-            "fragmentations": fragmentations
-        }
+            "fragmentations": fragmentations,
+        },
     }
 
 
